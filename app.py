@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 
 def display_property_details(property_data, property_index):
     st.subheader(f"Property {property_index + 1} Details:")
@@ -9,11 +10,25 @@ def display_property_details(property_data, property_index):
 def save_property_details(properties, property_data):
     properties.append(property_data)
 
+def fetch_property_info(api_key, address):
+    url = f"https://api.realtymole.com/property?address={address}"
+    headers = {"Api-Key": api_key}
+
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        st.error(f"Error fetching property details: {response.text}")
+        return None
+
 def main():
     st.title("Property Information App")
 
-    # Allow user to upload a file
-    uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+    # Allow user to input Realty Mole API key
+    realty_mole_api_key = st.text_input("Enter Realty Mole API Key:")
+
+    # Allow user to input address to fetch property details
+    property_address = st.text_input("Enter Property Address:")
 
     # List to store uploaded property details
     uploaded_properties = []
@@ -22,54 +37,28 @@ def main():
     add_properties = st.checkbox("Add Properties")
     while add_properties:
         property_details = {}
-        st.sidebar.subheader("Enter Property Details:")
-        for field in ["Address Line 1", "City", "State", "Zip Code", "Formatted Address",
-                      "Assessor ID", "Bedrooms", "County", "Legal Description", "Square Footage",
-                      "Subdivision", "Year Built", "Bathrooms", "Lot Size", "Property Type",
-                      "Last Sale Date", "Architecture Type", "Cooling", "Cooling Type",
-                      "Exterior Type", "Floor Count", "Foundation Type", "Garage", "Garage Type",
-                      "Heating", "Heating Type", "Pool", "Roof Type", "Room Count", "Unit Count"]:
+
+        # Fetch additional property details using Realty Mole API
+        if realty_mole_api_key and property_address:
+            st.sidebar.info("Fetching additional property details...")
+            api_result = fetch_property_info(realty_mole_api_key, property_address)
+            if api_result:
+                property_details.update(api_result)
+
+        # Allow user to input additional details
+        st.sidebar.subheader("Enter Additional Property Details:")
+        for field in ["Address Line 1", "City", "State", "Zip Code", "Bedrooms", "Bathrooms",
+                      "Square Footage", "Year Built", "Lot Size", "Property Type", "Last Sale Date",
+                      "Value", "Land", "Cooling", "Cooling Type", "Garage", "Garage Type",
+                      "Heating", "Heating Type", "Pool", "Room Count", "Roof Type"]:
             property_details[field] = st.sidebar.text_input(field)
-
-        st.sidebar.subheader("Enter Financial Details:")
-        financial_details = {}
-        for year in range(1, 7):
-            year_str = f"Year {year}"
-            financial_details[year_str] = {}
-            financial_details[year_str]["Value"] = st.sidebar.number_input(f"{year_str} - Value", value=0)
-            financial_details[year_str]["Land"] = st.sidebar.number_input(f"{year_str} - Land", value=0)
-
-        st.sidebar.subheader("Enter Geographical Details:")
-        geographical_details = {}
-        geographical_details["ID"] = st.sidebar.text_input("ID")
-        geographical_details["Longitude"] = st.sidebar.number_input("Longitude")
-        geographical_details["Latitude"] = st.sidebar.number_input("Latitude")
-
-        st.sidebar.subheader("Enter Additional Property Information:")
-        additional_property_information = {}
-        for i in range(3):  # You can adjust the number of additional entries
-            key = st.sidebar.text_input(f"Additional Key {i + 1}")
-            value = st.sidebar.text_input(f"Additional Value {i + 1}")
-            additional_property_information[key] = value
 
         # Save and display the current property
         if st.sidebar.button("Save Property"):
-            save_property_details(uploaded_properties, {
-                "Property Details": property_details,
-                "Financial Details": financial_details,
-                "Geographical Details": geographical_details,
-                "Additional Property Information": additional_property_information
-            })
+            save_property_details(uploaded_properties, property_details)
 
         # Add another property or finish
         add_properties = st.sidebar.checkbox("Add Another Property")
-
-    # Display properties from the uploaded CSV
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-        for index, row in df.iterrows():
-            st.markdown("---")
-            display_property_details(row.to_dict(), index)
 
     # Display 10 demo properties
     demo_properties = [
@@ -81,7 +70,6 @@ def main():
             "Bedrooms": 4,
             "Bathrooms": 2.5,
             "Square Footage": 2500,
-            "Lot Size": 8000,
             "Year Built": 2000,
             "Last Sale Date": "2022-01-01",
             "Value": 350000,
@@ -133,7 +121,7 @@ def main():
         st.markdown("## All Saved Properties:")
         for i, property_data in enumerate(uploaded_properties):
             st.markdown("---")
-            display_property_details(property_data["Property Details"], i + len(demo_properties))
+            display_property_details(property_data, i + len(demo_properties))
 
 if __name__ == "__main__":
     main()
