@@ -1,5 +1,5 @@
 streamlit  # For the Streamlit framework
 pandas      # For handling data in tabular form (though it's not currently used in the code, it's typical for these types of apps)
 requests  # For making HTTP requests to the Realty Mole API
-numpy==1.24.0
-matplotlib==3.6.2
+numpy
+matplotlib
