@@ -1,5 +1,6 @@
 import streamlit as st
-import requests
+import http.client
+import json
 
 # Function to display all property details in the Streamlit app
 def display_property_details(property_data):
@@ -7,22 +8,30 @@ def display_property_details(property_data):
     for key, value in property_data.items():
         st.write(f"{key}: {value}")
 
-# Function to fetch property details using the Realty Mole API via RapidAPI
+# Function to fetch property details using the Realty Mole API via RapidAPI and http.client
 def fetch_property_info(api_key, address):
     """Fetches detailed property information using RapidAPI's Realty Mole API."""
-    url = f"https://realty-mole-property-api.p.rapidapi.com/properties?address={address}"
+    conn = http.client.HTTPSConnection("realty-mole-property-api.p.rapidapi.com")
 
     headers = {
-        "x-rapidapi-host": "realty-mole-property-api.p.rapidapi.com",
-        "x-rapidapi-key": api_key
+        'x-rapidapi-key': api_key,
+        'x-rapidapi-host': "realty-mole-property-api.p.rapidapi.com"
     }
 
+    url = f"/properties?address={address}"
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()  # Raise an error for bad status codes
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching property details: {str(e)}")
+        conn.request("GET", url, headers=headers)
+        res = conn.getresponse()
+        data = res.read()
+        conn.close()
+
+        if res.status == 200:
+            return json.loads(data.decode("utf-8"))
+        else:
+            st.error(f"Error fetching property details: {res.status} - {res.reason}")
+            return None
+    except Exception as e:
+        st.error(f"Connection error: {str(e)}")
         return None
 
 # Main function to run the Streamlit app
@@ -52,3 +61,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
