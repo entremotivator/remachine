@@ -6,7 +6,11 @@ def display_property_details(property_data):
     """Displays property details in the Streamlit app."""
     st.subheader("Property Details:")
     for key, value in property_data.items():
-        if isinstance(value, list):
+        if isinstance(value, dict):
+            st.write(f"{key}:")
+            for sub_key, sub_value in value.items():
+                st.write(f"- {sub_key}: {sub_value}")
+        elif isinstance(value, list):
             st.write(f"{key}:")
             for item in value:
                 st.write(f"- {item}")
@@ -21,14 +25,19 @@ def fetch_property_info(api_key, address):
 
     headers = {
         "x-rapidapi-key": api_key,
-        "x-rapidapi-host": "realty-mole-property-api.p.rapidapi.com"
+        "x-rapidapi-host": "realty-mole-property-api.p.rapidapi.com",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "x-rapidapi-ua": "RapidAPI-Playground"
     }
 
     try:
         response = requests.get(url, headers=headers, params=querystring)
 
         if response.status_code == 200:
-            return response.json()
+            # Parse the response JSON
+            properties = response.json()
+            return properties
         else:
             st.error(f"Error fetching property details: {response.status_code} - {response.text}")
             return None
@@ -53,8 +62,8 @@ def main():
             api_result = fetch_property_info(rapidapi_key, property_address)
             if api_result:
                 # Display the fetched property details
-                if isinstance(api_result, dict) and "properties" in api_result:
-                    for property_data in api_result["properties"]:
+                if isinstance(api_result, list) and len(api_result) > 0:
+                    for property_data in api_result:
                         display_property_details(property_data)
                 else:
                     st.error("No property details found for the provided address.")
