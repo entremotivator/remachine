@@ -1,21 +1,22 @@
 import streamlit as st
 import requests
+import pandas as pd
 
-# Function to display all property details in the Streamlit app
+# Function to display property details in the Streamlit app
 def display_property_details(property_data):
     """Displays property details in the Streamlit app."""
     st.subheader("Property Details:")
     for key, value in property_data.items():
         if isinstance(value, dict):
-            st.write(f"{key}:")
+            st.write(f"**{key}:**")
             for sub_key, sub_value in value.items():
-                st.write(f"- {sub_key}: {sub_value}")
+                st.write(f"- **{sub_key}:** {sub_value}")
         elif isinstance(value, list):
-            st.write(f"{key}:")
+            st.write(f"**{key}:**")
             for item in value:
                 st.write(f"- {item}")
         else:
-            st.write(f"{key}: {value}")
+            st.write(f"**{key}:** {value}")
 
 # Function to fetch property details using the Realty Mole API via RapidAPI
 def fetch_property_info(api_key, address):
@@ -45,12 +46,19 @@ def fetch_property_info(api_key, address):
         st.error(f"Connection error: {str(e)}")
         return None
 
+# Function to export property data to CSV
+def export_to_csv(property_data):
+    """Exports the property data to a CSV file."""
+    df = pd.DataFrame(property_data)
+    csv = df.to_csv(index=False)
+    return csv
+
 # Main function to run the Streamlit app
 def main():
     st.title("Comprehensive Property Information App")
 
     # Input for RapidAPI key
-    rapidapi_key = st.text_input("Enter RapidAPI Key:")
+    rapidapi_key = st.text_input("Enter RapidAPI Key:", type="password")
 
     # Input for property address (e.g., '5500 Grand Lake Dr, San Antonio, TX, 78244')
     property_address = st.text_input("Enter Property Address (e.g., '5500 Grand Lake Dr, San Antonio, TX, 78244'):")
@@ -65,6 +73,16 @@ def main():
                 if isinstance(api_result, list) and len(api_result) > 0:
                     for property_data in api_result:
                         display_property_details(property_data)
+
+                    # Button to export property data
+                    if st.button("Export Property Data to CSV"):
+                        csv = export_to_csv(api_result)
+                        st.download_button(
+                            label="Download CSV",
+                            data=csv,
+                            file_name="property_data.csv",
+                            mime="text/csv"
+                        )
                 else:
                     st.error("No property details found for the provided address.")
         else:
