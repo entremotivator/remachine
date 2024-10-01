@@ -1,43 +1,5 @@
 import streamlit as st
-import requests
-
-# Function to fetch ZPID from the address using Zillow API (assumed endpoint)
-def fetch_zpid(api_key, address):
-    url = "https://zillow-zestimate.p.rapidapi.com/zestimate"
-    
-    querystring = {"address": address}
-    
-    headers = {
-        "x-rapidapi-key": api_key,
-        "x-rapidapi-host": "zillow-zestimate.p.rapidapi.com"
-    }
-    
-    response = requests.get(url, headers=headers, params=querystring)
-
-    if response.status_code == 200:
-        return response.json().get("zpid", None)  # Return ZPID if request is successful
-    else:
-        st.error("Error fetching ZPID from API. Status Code: {}".format(response.status_code))
-        return None
-
-# Function to fetch property details from Zillow API using ZPID
-def fetch_property_data(api_key, zpid):
-    url = "https://zillow-zestimate.p.rapidapi.com/zestimate"
-    
-    querystring = {"zpid": zpid}
-    
-    headers = {
-        "x-rapidapi-key": api_key,  # User's API key
-        "x-rapidapi-host": "zillow-zestimate.p.rapidapi.com"
-    }
-    
-    response = requests.get(url, headers=headers, params=querystring)
-
-    if response.status_code == 200:
-        return response.json()  # Return JSON data if request is successful
-    else:
-        st.error("Error fetching data from API. Status Code: {}".format(response.status_code))
-        return None
+from zillow import get_zpids, fetch_property_details
 
 # Streamlit application layout
 st.title("Zillow Property Finder")
@@ -45,18 +7,17 @@ st.title("Zillow Property Finder")
 # Input for user's API key
 api_key = st.text_input("Enter your Zillow API Key:", type="password")
 
-# Input for Property Address
-address = st.text_input("Enter the Property Address:")
+# Input for ZIP code
+zipcode = st.text_input("Enter the ZIP Code:")
 
 # Button to fetch property details
 if st.button("Get Property Details"):
-    if api_key and address:
-        # Fetch ZPID using the address
-        zpid = fetch_zpid(api_key, address)
+    if api_key and zipcode:
+        # Fetch ZPIDs using the provided ZIP code
+        zpids = get_zpids(int(zipcode), sort_by='newest')
         
-        if zpid:
-            # Fetch property details using ZPID
-            property_data = fetch_property_data(api_key, zpid)
+        if zpids:
+            property_data = fetch_property_details(api_key, zpids[0])  # Get details for the first ZPID
             
             if property_data:
                 # Display property details
@@ -81,11 +42,11 @@ if st.button("Get Property Details"):
                 else:
                     st.write("No images available.")
             else:
-                st.warning("No data found for the given address.")
+                st.warning("No data found for the given ZIP code.")
         else:
-            st.warning("No ZPID found for the given address.")
+            st.warning("No listings found for the given ZIP code.")
     else:
-        st.error("Please enter your API key and a valid property address.")
+        st.error("Please enter your API key and a valid ZIP code.")
 
 # Run the Streamlit app
 if __name__ == "__main__":
