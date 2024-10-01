@@ -1,58 +1,55 @@
 import streamlit as st
 import requests
 
-def display_property_details(property_data, property_index):
-    """Displays the details of a property."""
-    st.subheader(f"Property {property_index + 1} Details:")
+# Function to display property details in the Streamlit app
+def display_property_details(property_data):
+    st.subheader("Property Details:")
     for key, value in property_data.items():
         st.write(f"{key}: {value}")
 
-def save_property_details(properties, property_data):
-    """Saves the fetched property details into a list."""
-    properties.append(property_data)
-
+# Function to fetch property information using the Realty Mole API via RapidAPI
 def fetch_property_info(api_key, address):
-    """Fetches property details from the Realty Mole API."""
-    url = f"https://api.realtymole.com/property?address={address}"
-    headers = {"Api-Key": api_key}
+    """Fetches property details using RapidAPI's Realty Mole API."""
+    url = f"https://realty-mole-property-api.p.rapidapi.com/rentalListings/{address}"
 
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
+    headers = {
+        "x-rapidapi-host": "realty-mole-property-api.p.rapidapi.com",
+        "x-rapidapi-key": api_key
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an error for bad status codes
         return response.json()
-    else:
-        st.error(f"Error fetching property details: {response.text}")
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching property details: {str(e)}")
         return None
 
+# Main function to run the Streamlit app
 def main():
-    """Main function for the Streamlit app."""
-    st.title("Property Information App")
+    st.title("Property Rental Information App")
 
-    # Allow user to input Realty Mole API key
-    realty_mole_api_key = st.text_input("Enter Realty Mole API Key:")
-    
-    # Allow user to input the property address to search
-    property_address = st.text_input("Enter Property Address:")
+    # Input for RapidAPI key
+    rapidapi_key = st.text_input("Enter RapidAPI Key:")
 
-    # List to store uploaded property details
-    uploaded_properties = []
+    # Input for property address (formatted for the API: e.g., '1702-Cherry-Orchard-Dr,-Austin,-TX-78745')
+    property_address = st.text_input("Enter Property Address (formatted like '1702-Cherry-Orchard-Dr,-Austin,-TX-78745'):")
 
     # Button to fetch property details via API
     if st.button("Fetch Property Info"):
-        if realty_mole_api_key and property_address:
+        if rapidapi_key and property_address:
             st.info("Fetching property details...")
-            api_result = fetch_property_info(realty_mole_api_key, property_address)
+            api_result = fetch_property_info(rapidapi_key, property_address)
             if api_result:
-                # Save and display the fetched property
-                save_property_details(uploaded_properties, api_result)
-                display_property_details(api_result, len(uploaded_properties) - 1)  # Use len(uploaded_properties)-1 for correct index
+                # Display the fetched property details
+                if isinstance(api_result, list) and len(api_result) > 0:
+                    for property_data in api_result:
+                        display_property_details(property_data)
+                else:
+                    st.error("No property details found for the provided address.")
         else:
-            st.error("Please enter both API key and property address.")
-
-    # Display all fetched properties
-    if uploaded_properties:
-        st.write("All Fetched Properties:")
-        for i, property_data in enumerate(uploaded_properties):
-            display_property_details(property_data, i)
+            st.error("Please enter both the API key and the property address.")
 
 if __name__ == "__main__":
     main()
+
