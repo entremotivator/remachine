@@ -33,32 +33,29 @@ def main():
     # List to store uploaded property details
     uploaded_properties = []
 
-    # Add multiple properties interactively
-    add_properties = st.checkbox("Add Properties")
-    while add_properties:
-        property_details = {}
-
-        # Fetch additional property details using Realty Mole API
+    # Button to fetch property details via API
+    if st.button("Fetch Property Info"):
         if realty_mole_api_key and property_address:
-            st.sidebar.info("Fetching additional property details...")
+            st.info("Fetching property details...")
             api_result = fetch_property_info(realty_mole_api_key, property_address)
             if api_result:
-                property_details.update(api_result)
+                # Save and display the fetched property
+                save_property_details(uploaded_properties, api_result)
+                display_property_details(api_result, len(uploaded_properties))
 
-        # Allow user to input additional details
-        st.sidebar.subheader("Enter Additional Property Details:")
-        for field in ["Address Line 1", "City", "State", "Zip Code", "Bedrooms", "Bathrooms",
-                      "Square Footage", "Year Built", "Lot Size", "Property Type", "Last Sale Date",
-                      "Value", "Land", "Cooling", "Cooling Type", "Garage", "Garage Type",
-                      "Heating", "Heating Type", "Pool", "Room Count", "Roof Type"]:
-            property_details[field] = st.sidebar.text_input(field)
+    # Manual property input for additional details
+    st.sidebar.subheader("Enter Additional Property Details:")
+    property_details = {}
+    for field in ["Address Line 1", "City", "State", "Zip Code", "Bedrooms", "Bathrooms",
+                  "Square Footage", "Year Built", "Lot Size", "Property Type", "Last Sale Date",
+                  "Value", "Land", "Cooling", "Cooling Type", "Garage", "Garage Type",
+                  "Heating", "Heating Type", "Pool", "Room Count", "Roof Type"]:
+        property_details[field] = st.sidebar.text_input(field)
 
-        # Save and display the current property
-        if st.sidebar.button("Save Property"):
-            save_property_details(uploaded_properties, property_details)
-
-        # Add another property or finish
-        add_properties = st.sidebar.checkbox("Add Another Property")
+    # Save manually entered property
+    if st.sidebar.button("Save Manual Property"):
+        save_property_details(uploaded_properties, property_details)
+        st.sidebar.success("Property saved.")
 
     # Display 10 demo properties
     demo_properties = [
@@ -84,7 +81,6 @@ def main():
             "Room Count": 8,
             "Roof Type": "Shingle",
         },
-        # Add more demo properties
         {
             "Address Line 1": "456 Oak St",
             "City": "Townsville",
@@ -108,8 +104,7 @@ def main():
             "Room Count": 6,
             "Roof Type": "Tile",
         },
-        # Add more demo properties
-        # ...
+        # Add more demo properties here
     ]
 
     for i, demo_property in enumerate(demo_properties):
