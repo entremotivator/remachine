@@ -1,7 +1,9 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 # Title of the Streamlit application
 st.title("Enhanced Real Estate Financial Calculator")
@@ -19,52 +21,27 @@ monthly_expenses = st.sidebar.number_input("Enter Monthly Expenses ($):", value=
 appreciation_rate = st.sidebar.number_input("Enter Annual Appreciation Rate (%):", value=3.0, format="%.1f") / 100
 
 # Calculations
-# 1. Down Payment Calculation (20% of COST_PRICE)
 down_payment = cost_price * 0.20
-
-# 2. Loan Amount After Down Payment
 loan_amount = cost_price - down_payment
-
-# 3. Monthly Payment Calculation
-n = loan_duration * 12  # Total number of payments
-r = interest_rate / 12  # Monthly interest rate
+n = loan_duration * 12
+r = interest_rate / 12
 monthly_payment = loan_amount * (r * (1 + r) ** n) / ((1 + r) ** n - 1)
-
-# 4. Monthly Property Tax Calculation
 annual_property_tax = cost_price * property_tax_rate
 monthly_property_tax = annual_property_tax / 12
-
-# 5. Monthly Insurance Payment Calculation
 annual_insurance = cost_price * insurance_rate
 monthly_insurance = annual_insurance / 12
-
-# 6. Total Monthly Payment Including Taxes and Insurance
 total_monthly_payment = monthly_payment + monthly_property_tax + monthly_insurance
-
-# 7. Total Amount Paid Over the Loan Duration
 total_payments = total_monthly_payment * 12 * loan_duration
-
-# 8. Total Interest Paid Over the Loan Duration
 total_interest = total_payments - loan_amount
-
-# 9. Average Price Calculation
 average_price = (price_range_low + price_range_high) / 2
-
-# 10. Percentage Difference from LOW to HIGH
 percentage_difference = ((price_range_high - price_range_low) / price_range_low) * 100
-
-# 11. ROI if sold at HIGH price (10% increase)
-selling_price = cost_price * 1.10  # Selling price at 10% higher
+selling_price = cost_price * 1.10
 roi = ((selling_price - cost_price) / cost_price) * 100
-
-# 12. Break-even Point Calculation
 break_even_months = cost_price / monthly_expenses
 break_even_years = break_even_months / 12
-
-# 13. Future Value of Investment After 5 Years
 future_value = cost_price * (1 + appreciation_rate) ** 5
 
-# Detailed year-by-year payment breakdown
+# Year-by-year payment breakdown
 years = np.arange(1, loan_duration + 1)
 remaining_balance = loan_amount
 interest_paid = []
@@ -115,31 +92,37 @@ st.dataframe(payment_df)
 csv = payment_df.to_csv(index=False)
 st.download_button(label="Download Amortization Schedule as CSV", data=csv, file_name='amortization_schedule.csv', mime='text/csv')
 
-# Plot the results
-fig, ax = plt.subplots(3, 1, figsize=(10, 12))
+# Function to generate PDF
+def generate_pdf():
+    pdf_buffer = BytesIO()
+    c = canvas.Canvas(pdf_buffer, pagesize=letter)
+    width, height = letter
 
-# Interest and Principal Paid Plot
-ax[0].bar(payment_df['Year'], payment_df['Interest Paid'], label='Interest Paid', color='red', alpha=0.6)
-ax[0].bar(payment_df['Year'], payment_df['Principal Paid'], label='Principal Paid', color='green', alpha=0.6)
-ax[0].set_title('Yearly Interest and Principal Paid')
-ax[0].set_xlabel('Year')
-ax[0].set_ylabel('Amount ($)')
-ax[0].legend()
+    c.drawString(100, height - 50, "Enhanced Real Estate Financial Calculator Report")
+    c.drawString(100, height - 80, f"Cost Price: ${cost_price:,.2f}")
+    c.drawString(100, height - 100, f"Loan Amount: ${loan_amount:,.2f}")
+    c.drawString(100, height - 120, f"Monthly Payment: ${monthly_payment:,.2f}")
+    c.drawString(100, height - 140, f"Total Monthly Payment: ${total_monthly_payment:,.2f}")
+    c.drawString(100, height - 160, f"Total Interest Paid: ${total_interest:,.2f}")
+    c.drawString(100, height - 180, f"Break-even Point: {break_even_months:.2f} months")
+    c.drawString(100, height - 200, f"Future Value After 5 Years: ${future_value:,.2f}")
 
-# Remaining Balance Plot
-ax[1].plot(payment_df['Year'], payment_df['Remaining Balance'], label='Remaining Balance', marker='o', color='blue')
-ax[1].set_title('Remaining Loan Balance Over Time')
-ax[1].set_xlabel('Year')
-ax[1].set_ylabel('Remaining Balance ($)')
-ax[1].legend()
+    # Add DataFrame to PDF
+    c.drawString(100, height - 230, "Yearly Payment Breakdown:")
+    y_position = height - 250
+    for i in range(len(payment_df)):
+        row = payment_df.iloc[i]
+        c.drawString(100, y_position, f"Year {row['Year']}: Interest Paid: ${row['Interest Paid']:.2f}, Principal Paid: ${row['Principal Paid']:.2f}, Remaining Balance: ${row['Remaining Balance']:.2f}")
+        y_position -= 20
+    
+    c.save()
+    pdf_buffer.seek(0)
+    return pdf_buffer
 
-# Total Payment Breakdown Pie Chart
-ax[2].pie([total_interest, total_payments - total_interest], labels=['Total Interest', 'Principal Payments'], autopct='%1.1f%%', startangle=90)
-ax[2].axis('equal')  # Equal aspect ratio ensures that pie chart is circular.
-ax[2].set_title('Total Payment Breakdown')
-
-plt.tight_layout()
-st.pyplot(fig)
+# Button to download PDF
+if st.button("Download Report as PDF"):
+    pdf_file = generate_pdf()
+    st.download_button(label="Download PDF", data=pdf_file, file_name='real_estate_report.pdf', mime='application/pdf')
 
 # Sensitivity Analysis Section
 st.header("Monthly Payment Sensitivity Analysis")
@@ -174,9 +157,8 @@ future_values = [cost_price * (1 + appreciation_rate) ** year for year in years_
 st.subheader("Future Value of Investment Over 5 Years")
 plt.figure(figsize=(8, 6))
 plt.plot(years_future, future_values, marker='o')
-plt.title("Future Value of Investment")
+plt.title("Future Value of Investment Over Time")
 plt.xlabel("Years")
 plt.ylabel("Future Value ($)")
-plt.xticks(years_future)
 plt.grid()
-st.pyplot(plt)
+st.pyplot()
