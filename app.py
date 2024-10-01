@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import json
 
 def fetch_property_price_report(address, property_type, bedrooms, bathrooms, square_footage, comp_count, api_key):
     """Fetches the sale price report for a specified property using the Realty Mole API."""
@@ -23,7 +24,9 @@ def fetch_property_price_report(address, property_type, bedrooms, bathrooms, squ
         response = requests.get(url, headers=headers, params=querystring)
 
         if response.status_code == 200:
-            return response.json()
+            # Parse the JSON response
+            property_data = json.loads(response.text)  # Convert string to list
+            return property_data[0]  # Return the first (and only) property
         else:
             st.error(f"Error fetching data: {response.status_code} - {response.text}")
             return None
@@ -33,34 +36,45 @@ def fetch_property_price_report(address, property_type, bedrooms, bathrooms, squ
 
 def generate_investment_report(data):
     """Generates a detailed investment report from the property data."""
-    if not data or 'salePrice' not in data:
+    if not data:
         st.error("No valid data available to generate the report.")
         return
 
     st.subheader("--- Property Smart Investment Report ---")
-    st.write(f"**Address:** {data.get('address', 'N/A')}")
+    st.write(f"**Address:** {data.get('formattedAddress', 'N/A')}")
     st.write(f"**Property Type:** {data.get('propertyType', 'N/A')}")
     st.write(f"**Bedrooms:** {data.get('bedrooms', 'N/A')}")
     st.write(f"**Bathrooms:** {data.get('bathrooms', 'N/A')}")
     st.write(f"**Square Footage:** {data.get('squareFootage', 'N/A')} sq ft")
-    st.write(f"**Estimated Sale Price:** ${data.get('salePrice', 'N/A')}")
-    st.write(f"**Comparable Properties Count:** {data.get('compCount', 'N/A')}")
+    st.write(f"**Estimated Sale Price:** ${data.get('lastSalePrice', 'N/A')}")
+    st.write(f"**Lot Size:** {data.get('lotSize', 'N/A')} sq ft")
+    st.write(f"**Year Built:** {data.get('yearBuilt', 'N/A')}")
 
-    st.write("\n**--- Comparable Properties ---**")
-    if 'comps' in data:
-        for comp in data['comps']:
-            st.write(f"- Address: {comp.get('address', 'N/A')}, Sale Price: ${comp.get('salePrice', 'N/A')}, Bedrooms: {comp.get('bedrooms', 'N/A')}, Bathrooms: {comp.get('bathrooms', 'N/A')}, Square Footage: {comp.get('squareFootage', 'N/A')}")
-    else:
-        st.write("No comparable properties found.")
+    # Display additional features
+    features = data.get('features', {})
+    st.write("**Property Features:**")
+    st.write(f"- Cooling: {'Yes' if features.get('cooling', False) else 'No'}")
+    st.write(f"- Heating: {'Yes' if features.get('heating', False) else 'No'}")
+    st.write(f"- Pool: {'Yes' if features.get('pool', False) else 'No'}")
+    st.write(f"- Garage: {'Yes' if features.get('garage', False) else 'No'}")
+    st.write(f"- Architecture Type: {features.get('architectureType', 'N/A')}")
+    
+    # Display tax assessments and property taxes
+    st.write("\n**--- Tax Assessment History ---**")
+    tax_assessment = data.get('taxAssessment', {})
+    for year, values in tax_assessment.items():
+        st.write(f"- {year}: Total Value: ${values['value']} (Land: ${values['land']}, Improvements: ${values['improvements']})")
+    
+    st.write("\n**--- Property Taxes ---**")
+    property_taxes = data.get('propertyTaxes', {})
+    for year, values in property_taxes.items():
+        st.write(f"- {year}: Total Tax: ${values['total']}")
 
-    st.write("\n**--- Investment Insights ---**")
-    average_price = sum(comp['salePrice'] for comp in data.get('comps', []) if 'salePrice' in comp) / max(len(data.get('comps', [])), 1)
-    st.write(f"**Average Sale Price of Comparable Properties:** ${average_price:.2f}")
-    st.write("Consider the following before making an investment:")
-    st.write("- Analyze market trends in the area.")
-    st.write("- Compare the property with similar listings.")
-    st.write("- Assess potential renovation costs if applicable.")
-    st.write("- Calculate potential rental income and return on investment.")
+    # Owner information
+    owner_info = data.get('owner', {})
+    st.write("\n**--- Owner Information ---**")
+    st.write(f"- Owner Name: {', '.join(owner_info.get('names', []))}")
+    st.write(f"- Mailing Address: {owner_info.get('mailingAddress', {}).get('formattedAddress', 'N/A')}")
 
 def main():
     st.title("Property Smart Investment Report Generator")
